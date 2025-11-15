@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <title>PDF Hub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="spinner-overlay" id="spinner-overlay"><div class="spinner"></div></div>
+
+    <input type="file" id="pdf-input" accept=".pdf" multiple>
+
+    <div class="container">
+        <div class="results-container" id="results-container">
+            <div class="tab-nav" id="tab-nav">
+                <!-- Tabs will be inserted here by JS -->
+            </div>
+            <div class="tab-content" id="tab-content"></div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div id="copy-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Choose Copy Format</h3>
+            <div>
+                <button id="copy-as-text-btn">Copy as Plain Text</button>
+                <button id="copy-as-html-btn">Copy as Formatted HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main application logic -->
+    <script src="./js/main.js" type="module"></script>
+
+</body>
+</html>

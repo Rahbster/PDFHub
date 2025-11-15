@@ -1,0 +1,264 @@
+* { box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f4f7f9;
+    color: #333;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+#main {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+.container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+#pdf-input {
+    display: none;
+}
+.file-label {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #e1e8ed;
+    color: #333;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+#convert-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#convert-btn:hover {
+    background-color: #0056b3;
+}
+#convert-btn:disabled {
+    background-color: #a0c7e4;
+    cursor: not-allowed;
+}
+.results-container {
+    background-color: #fdfdfd;
+    border: 1px solid #e1e8ed;
+    border-radius: 5px;
+    text-align: left;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0 2rem 1rem;
+}
+.tab-nav {
+    display: flex;
+    border-bottom: 1px solid #e1e8ed;
+    background-color: #f4f7f9;
+    flex-wrap: wrap;
+    position: relative; /* For positioning the add button */
+}
+#add-files-btn {
+    padding: 10px 15px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    border: none;
+    background: #e1e8ed;
+    margin-left: auto; /* Pushes it to the far right */
+}
+#copy-all-btn {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    background: #e1e8ed;
+    display: none; /* Hidden until files are loaded */
+}
+#copy-all-btn:hover,
+#add-files-btn:hover {
+    background: #d4dde4;
+}
+#add-files-btn:hover {
+    background: #d4dde4;
+}
+.tab-container {
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #e1e8ed;
+}
+.tab-container.dragging {
+    opacity: 0.5;
+    background: #cce5ff;
+}
+.copy-btn {
+    padding: 5px 10px;
+    margin-right: 10px;
+    font-size: 0.8rem;
+    background-color: #e1e8ed;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.copy-btn:hover {
+    background-color: #d4dde4;
+}
+.copy-btn:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+.copy-btn svg {
+    vertical-align: middle;
+    width: 16px;
+    height: 16px;
+}
+.close-tab-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 8px;
+    color: #666;
+    margin-left: 5px;
+    line-height: 1;
+    border-radius: 50%;
+}
+.close-tab-btn:hover {
+    background-color: #d4dde4;
+    color: #111;
+}
+.tab-btn {
+    padding: 10px 15px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    border-bottom: 2px solid transparent;
+    font-size: 0.9rem;
+}
+.tab-container.active .tab-btn {
+    border-bottom: 2px solid #007bff;
+}
+.tab-btn.active {
+    border-bottom: 2px solid #007bff;
+    font-weight: 600;
+    color: #1a2533;
+}
+.tab-content {
+    flex-grow: 1;
+    position: relative; /* Needed for child iframe to fill height */
+    display: flex; /* Make this a flex container */
+    flex-direction: column;
+}
+.tab-panel {
+    display: none; /* Hidden by default */
+    height: 100%;
+    width: 100%;
+}
+.tab-panel iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+.tab-panel.active {
+    display: flex; /* Change from block to flex */
+    flex-grow: 1; /* Allow the active panel to grow */
+}
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.spinner {
+    border: 8px solid #e1e8ed;
+    border-top: 8px solid #007bff;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 1002;
+}
+.modal-content {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.modal-content h3 {
+    margin-top: 0;
+    color: #1a2533;
+}
+.modal-content button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0.5rem;
+}
+.hidden {
+    display: none !important;
+}
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.toast {
+    background-color: #333;
+    color: #fff;
+    padding: 15px 20px;
+    border-radius: 5px;
+    margin-top: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.4s ease-in-out;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.toast.info {
+    background-color: #17a2b8;
+}
+.toast.success {
+    background-color: #28a745;
+}
+.toast.error {
+    background-color: #dc3545;
+}
