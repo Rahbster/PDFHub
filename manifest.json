@@ -2,7 +2,7 @@
   "name": "PDF Hub",
   "short_name": "PDF Hub",
   "description": "A browser-based utility for viewing and extracting content from PDF documents.",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#e9eef2",
   "theme_color": "#333333"
