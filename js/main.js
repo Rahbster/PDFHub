@@ -5,9 +5,6 @@ const resultsContainer = document.getElementById('results-container');
 const tabNav = document.getElementById('tab-nav');
 const tabContent = document.getElementById('tab-content');
 const spinnerOverlay = document.getElementById('spinner-overlay');
-const copyModalOverlay = document.getElementById('copy-modal-overlay');
-const copyAsTextBtn = document.getElementById('copy-as-text-btn');
-const copyAsHtmlBtn = document.getElementById('copy-as-html-btn');
 let copyAllBtn = null; // Will be assigned in initializeUI
 let addFilesBtn = null; // Will be created dynamically
 
@@ -15,8 +12,6 @@ let addFilesBtn = null; // Will be created dynamically
 let objectUrls = [];
 // To store the list of currently loaded files
 let loadedFiles = [];
-// To temporarily hold the file and button for the active copy operation
-let activeCopyContext = { file: null, button: null, textContent: null, htmlContent: null };
 
 const ICONS = {
     COPY: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1-1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>`,
@@ -46,71 +41,41 @@ function initializeUI() {
     }
 }
 
-// Set up modal button listeners once
-copyAsTextBtn.addEventListener('click', () => performCopy('Text', activeCopyContext.textContent));
-copyAsHtmlBtn.addEventListener('click', () => performCopy('HTML', activeCopyContext.htmlContent));
-
-async function performCopy(format, content) {
-    const { button } = activeCopyContext;
-    if (!content || !button) return;
-
-    hideCopyModal();
-
-    // If a specific button was clicked, update it. Otherwise, update the 'Copy All' button.
-    const targetButton = button || copyAllBtn;
-    targetButton.disabled = true;
-
+/**
+ * Copies the provided text content to the clipboard and updates the button state.
+ * @param {string} content The text content to copy.
+ * @param {HTMLElement} button The button that was clicked.
+ */
+async function performCopy(content, button) {
+    button.disabled = true;
     try {
         await navigator.clipboard.writeText(content);
-        targetButton.innerHTML = ICONS.SUCCESS;
+        button.innerHTML = ICONS.SUCCESS;
+        showToast('Copied to clipboard!', 'success');
     } catch (err) {
-        console.error(`Failed to copy ${format}:`, err);
+        console.error('Failed to copy text:', err);
         showToast(`Failed to copy: ${err.message}`, 'error');
-        targetButton.innerHTML = 'Error';
+        button.innerHTML = 'Error';
     } finally {
         setTimeout(() => {
-            // If 'button' exists, it was a single tab's copy button. Otherwise, it was the 'Copy All' button.
-            if (button) {
-                targetButton.innerHTML = ICONS.COPY;
-            } else {
-                targetButton.innerHTML = ICONS.COPY_ALL;
-            }
-            targetButton.disabled = false;
+            // Restore the correct icon based on the button's ID
+            button.innerHTML = button.id === 'copy-all-btn' ? ICONS.COPY_ALL : ICONS.COPY;
+            button.disabled = false;
         }, 2000);
     }
 }
 
 async function handleCopyAllClick() {
-    const button = copyAllBtn;
-    button.disabled = true;
-    button.innerHTML = 'Preparing...';
+    copyAllBtn.disabled = true;
+    copyAllBtn.innerHTML = 'Preparing...';
 
     const textPromises = loadedFiles.map(f => extractTextFromPdf(f));
-    const htmlPromises = loadedFiles.map(f => extractHtmlFromPdf(f));
-
     const allText = (await Promise.all(textPromises)).join('\n\n---\n\n');
-    const allHtml = (await Promise.all(htmlPromises)).join('<hr>');
 
-    activeCopyContext = { file: null, button: button, textContent: allText, htmlContent: allHtml };
-    showCopyModal();
-}
-
-// Close the side panel if a click occurs outside of it
-window.addEventListener('click', (event) => {    
-    if (event.target === copyModalOverlay) { // Click on the modal background
-        hideCopyModal();
-    }
-});
-
-function showCopyModal() {
-    copyModalOverlay.style.display = 'flex';
-}
-
-function hideCopyModal() {
-    copyModalOverlay.style.display = 'none';
-    // If the copy operation was for "Copy All", reset its button state
-    // This handles the case where the user closes the modal without choosing.
-    if (activeCopyContext.button === copyAllBtn) {
+    if (allText) {
+        await performCopy(allText, copyAllBtn);
+    } else {
+        showToast('No text content to copy.', 'info');
         copyAllBtn.disabled = false;
         copyAllBtn.innerHTML = ICONS.COPY_ALL;
     }
@@ -124,7 +89,7 @@ function hideCopyModal() {
  */
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toast-container');
-    if (!container) return;
+    if (!container) return null;
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -132,14 +97,20 @@ function showToast(message, type = 'info', duration = 3000) {
 
     container.appendChild(toast);
 
+    // Use a short timeout to allow the element to be in the DOM before adding the 'show' class for the transition.
     setTimeout(() => {
         toast.classList.add('show');
     }, 100);
 
-    setTimeout(() => {
-        toast.classList.remove('show');
-        toast.addEventListener('transitionend', () => toast.remove());
-    }, duration);
+    // If duration is 0, the toast is persistent and must be removed manually.
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, duration);
+    }
+
+    return toast; // Return the toast element so it can be updated
 }
 
 /**
@@ -234,15 +205,9 @@ function createTab(file, tabId, isActive) {
 
     copyButton.addEventListener('click', async () => {
         copyButton.disabled = true;
-        copyButton.innerHTML = '...';
-
-        // Pre-extract both formats when the user clicks the tab's copy button
+        copyButton.innerHTML = 'Preparing...';
         const textContent = await extractTextFromPdf(file);
-        const htmlContent = await extractHtmlFromPdf(file);
-
-        // Set the context for the modal
-        activeCopyContext = { file: file, button: copyButton, textContent, htmlContent };
-        showCopyModal();
+        await performCopy(textContent, copyButton);
     });
 
     tabContainer.appendChild(tabButton);
@@ -405,6 +370,61 @@ function readFileAsArrayBuffer(file) {
     });
 }
 
+/**
+ * Performs OCR on a single PDF page.
+ * @param {PDFPageProxy} page The PDF.js page object.
+ * @returns {Promise<string>} A promise that resolves with the recognized text.
+ */
+async function performOcrOnPage(page) {
+    let ocrToast = null; // To hold the reference to our toast
+    try {
+        // Create a persistent toast for OCR progress
+        ocrToast = showToast('Starting OCR...', 'info', 0); // 0 duration = persistent
+
+        // Render page to a high-resolution canvas for better OCR accuracy.
+        // 300 DPI is a good standard for OCR.
+        const scale = 300 / 96;
+        const viewport = page.getViewport({ scale });
+        
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        
+        // Use Tesseract to recognize text from the canvas.
+        const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+            logger: m => {
+                // Update the toast message with live progress
+                if (ocrToast && m.status === 'recognizing text') {
+                    const progress = (m.progress * 100).toFixed(0);
+                    ocrToast.textContent = `OCR: Recognizing Text (${progress}%)`;
+                } else if (ocrToast) {
+                    ocrToast.textContent = `OCR: ${m.status}...`;
+                }
+            }
+        });
+
+        // OCR is complete, update toast to success and then remove it
+        if (ocrToast) {
+            ocrToast.textContent = 'OCR Complete!';
+            ocrToast.className = 'toast success show'; // Ensure it's visible
+            setTimeout(() => ocrToast.remove(), 1500);
+        }
+
+        return text;
+    } catch (error) {
+        console.error('OCR processing failed for a page:', error);
+        // If an error occurs, update the toast to show failure
+        if (ocrToast) {
+            ocrToast.textContent = 'OCR failed for a page.';
+            ocrToast.className = 'toast error show';
+            setTimeout(() => ocrToast.remove(), 3000);
+        }
+        return ''; // Return empty string on failure
+    }
+}
 
 /**
  * Reads a PDF file and extracts all text content from its pages.
@@ -412,8 +432,6 @@ function readFileAsArrayBuffer(file) {
  * @returns {Promise<string>} A promise that resolves with the extracted text.
  */
 async function extractTextFromPdf(file) {
-    const fileReader = new FileReader();
-
     try {
         const arrayBuffer = await readFileAsArrayBuffer(file);
         const typedarray = new Uint8Array(arrayBuffer);
@@ -424,73 +442,36 @@ async function extractTextFromPdf(file) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
 
-            if (textContent.items.length === 0) continue;
+            // If textContent is empty, it's likely a scanned/image page.
+            if (textContent.items.length > 0) {
+                // Sort items by their vertical, then horizontal position.
+                const sortedItems = textContent.items.sort((a, b) => {
+                    const yComparison = b.transform[5] - a.transform[5]; // Compare Y-coordinate
+                    if (Math.abs(yComparison) < 2) { // If on the same line
+                        return a.transform[4] - b.transform[4]; // Compare X-coordinate
+                    }
+                    return yComparison;
+                });
 
-            // Sort items by their vertical, then horizontal position.
-            const sortedItems = textContent.items.sort((a, b) => {
-                const yComparison = b.transform[5] - a.transform[5]; // Compare Y-coordinate
-                if (Math.abs(yComparison) < 2) { // If on the same line
-                    return a.transform[4] - b.transform[4]; // Compare X-coordinate
+                let lastY = sortedItems[0].transform[5];
+                let pageText = '';
+                for (const item of sortedItems) {
+                    if (Math.abs(item.transform[5] - lastY) > item.height) {
+                        pageText += '\n';
+                    }
+                    pageText += item.str;
+                    lastY = item.transform[5];
                 }
-                return yComparison;
-            });
-
-            let lastY = sortedItems[0].transform[5];
-            let pageText = '';
-            for (const item of sortedItems) {
-                if (Math.abs(item.transform[5] - lastY) > item.height) {
-                    pageText += '\n';
-                }
-                pageText += item.str;
-                lastY = item.transform[5];
+                fullText += pageText + '\n\n'; // Add space between pages
+            } else {
+                // Fallback to OCR
+                // The OCR function will now show its own detailed progress toasts.
+                const ocrText = await performOcrOnPage(page);
+                fullText += ocrText + '\n\n';
             }
-            fullText += pageText;
         }
 
         return fullText.trim();
-    } catch (error) {
-        throw error; // Re-throw the error to be caught by the caller
-    }
-}
-
-/**
- * Reads a PDF file and extracts its content as structured HTML.
- * @param {File} file - The PDF file object.
- * @returns {Promise<string>} A promise that resolves with the generated HTML.
- */
-async function extractHtmlFromPdf(file) {
-    const fileReader = new FileReader();
-
-    try {
-        const arrayBuffer = await readFileAsArrayBuffer(file);
-        const typedarray = new Uint8Array(arrayBuffer);
-        const loadingTask = pdfjsLib.getDocument({
-            data: typedarray,
-            cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
-            cMapPacked: true,
-        });
-        const pdf = await loadingTask.promise;
-        let fullHtml = '';
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 1.0 });
-            const textContent = await page.getTextContent();
-
-            let pageHtml = `<div style="position: relative; width:${viewport.width}px; height:${viewport.height}px; border: 1px solid #ccc; margin: 1rem auto; background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">`;
-
-            for (const item of textContent.items) {
-                const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-                const style = `position: absolute; left:${tx[4]}px; top:${tx[5]}px; font-size:${item.height}px; font-family:${item.fontName};`;
-                const sanitizedText = item.str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                pageHtml += `<span style="${style}">${sanitizedText}</span>`;
-            }
-
-            pageHtml += '</div>';
-            fullHtml += pageHtml;
-        }
-
-        return fullHtml;
     } catch (error) {
         throw error; // Re-throw the error to be caught by the caller
     }
@@ -501,6 +482,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     pdfInput.addEventListener('change', handleFileSelection); // File selection triggers the main logic
     tabNav.addEventListener('dragover', handleDragOver);
+
+    // Register the service worker for PWA functionality
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('Service Worker registered with scope:', registration.scope);
+            }).catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+    }
 
     // Announce that the PDF Hub is ready to receive files from a parent window.
     // The '*' targetOrigin is acceptable for local development.

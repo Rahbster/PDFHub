@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#333333"/>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="PDF Hub">
+    <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
     <title>PDF Hub</title>
     <link rel="stylesheet" href="css/style.css">
@@ -23,20 +29,12 @@
 
     <div id="toast-container"></div>
 
-    <div id="copy-modal-overlay" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Choose Copy Format</h3>
-            <div>
-                <button id="copy-as-text-btn">Copy as Plain Text</button>
-                <button id="copy-as-html-btn">Copy as Formatted HTML</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Load PDF.js library and worker first -->
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;</script>
-    <script src="./js/main.js" type="module"></script> <!-- Your app logic runs last -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <script src="./js/main.js" type="module"></script>
+    <link rel="manifest" href="manifest.json">
 
 </body>
 </html>
