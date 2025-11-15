@@ -1,11 +1,12 @@
-const CACHE_NAME = 'pdf-hub-pwa-cache-v4';
+const CACHE_NAME = 'pdf-hub-pwa-cache-v6';
 const localUrlsToCache = [
-    './',
-    './index.html',
-    './css/style.css',
-    './js/main.js',
-    './sw.js',
-    './manifest.json'
+    '/',
+    '/index.html',
+    '/css/style.css',
+    '/js/main.js',
+    '/sw.js',
+    '/manifest.json',
+    '/README.md'
 ];
 
 const externalUrlsToCache = [
