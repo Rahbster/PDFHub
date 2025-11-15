@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-hub-pwa-cache-v8';
+const CACHE_NAME = 'pdf-hub-pwa-cache-v9';
 const localUrlsToCache = [
     '/',
     '/index.html',
@@ -10,9 +10,7 @@ const localUrlsToCache = [
 ];
 
 const externalUrlsToCache = [
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
-    'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+ 
 ];
 
 self.addEventListener('install', (event) => {
