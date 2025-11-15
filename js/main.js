@@ -7,6 +7,18 @@ const tabContent = document.getElementById('tab-content');
 const spinnerOverlay = document.getElementById('spinner-overlay');
 let copyAllBtn = null; // Will be assigned in initializeUI
 let addFilesBtn = null; // Will be created dynamically
+let newWorker; // To hold the new service worker instance
+
+// Sidenav and Modal elements
+const hamburgerBtn = document.getElementById('hamburger-btn');
+const sidenav = document.getElementById('sidenav');
+const closeSidenavBtn = document.getElementById('close-sidenav-btn');
+const aboutBtn = document.getElementById('about-btn');
+const checkForUpdatesBtn = document.getElementById('check-for-updates-btn');
+const aboutModalOverlay = document.getElementById('about-modal-overlay');
+const aboutModalContent = document.getElementById('about-modal-content');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const closeAboutModalBtn = document.getElementById('close-about-modal-btn');
 
 // To keep track of created object URLs for cleanup
 let objectUrls = [];
@@ -477,21 +489,193 @@ async function extractTextFromPdf(file) {
     }
 }
 
+function setupSidenav() {
+    hamburgerBtn.addEventListener('click', (e) => {
+        sidenav.style.width = '250px';
+        e.stopPropagation(); // Prevent this click from being caught by the window listener
+    });
+
+    closeSidenavBtn.addEventListener('click', () => {
+        sidenav.style.width = '0';
+    });
+
+    aboutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        sidenav.style.width = '0'; // Close the side panel
+        showReadmeModal();
+    });
+
+    closeAboutModalBtn.addEventListener('click', () => {
+        aboutModalOverlay.style.display = 'none';
+    });
+
+    // Add a global click listener to close the sidenav when clicking outside
+    window.addEventListener('click', (e) => {
+        if (sidenav.style.width === '250px' && !sidenav.contains(e.target)) {
+            sidenav.style.width = '0';
+        }
+    });
+
+    aboutModalOverlay.addEventListener('click', (e) => {
+        if (e.target === aboutModalOverlay) {
+            aboutModalOverlay.style.display = 'none';
+        }
+    });
+
+    checkForUpdatesBtn.addEventListener('click', () => {
+        if (newWorker) {
+            newWorker.postMessage({ action: 'skipWaiting' });
+        }
+    });
+
+    // Theme switching logic
+    darkModeToggle.addEventListener('change', () => {
+        if (darkModeToggle.checked) {
+            document.body.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.body.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+        }
+    });
+}
+
+async function showReadmeModal() {
+    aboutModalOverlay.style.display = 'flex';
+    let originalHTML = '';
+    const contentArea = document.getElementById('about-modal-content');
+    contentArea.innerHTML = '<p>Loading...</p>';
+
+    try {
+        const response = await fetch('README.md');
+        if (!response.ok) throw new Error('README.md file not found.');
+
+        const markdown = await response.text();
+        originalHTML = parseMarkdown(markdown);
+        contentArea.innerHTML = originalHTML;
+
+        const searchInput = document.getElementById('readme-search-input');
+        const searchCount = document.getElementById('readme-search-count');
+        const clearButton = document.querySelector('.clear-search-btn[data-target="readme-search-input"]');
+
+        searchInput.oninput = () => {
+            const searchTerm = searchInput.value.trim();
+            contentArea.innerHTML = originalHTML; // Reset content
+            clearButton.classList.toggle('hidden', searchTerm === '');
+            if (searchTerm === '') {
+                searchCount.textContent = '';
+                return;
+            }
+            const regex = new RegExp(searchTerm, 'gi');
+            let matches = 0;
+            const newHTML = originalHTML.replace(regex, (match) => {
+                matches++;
+                return `<mark>${match}</mark>`;
+            });
+            contentArea.innerHTML = newHTML;
+            searchCount.textContent = `${matches} found`;
+            const firstMark = contentArea.querySelector('mark');
+            if (firstMark) firstMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+        clearButton.onclick = () => {
+            searchInput.value = '';
+            searchInput.dispatchEvent(new Event('input'));
+        };
+
+    } catch (error) {
+        console.error('Error fetching README:', error);
+        contentArea.innerHTML = `<p style="color: red;">Error: Could not load README.md.</p>`;
+    }
+}
+
+/**
+ * Parses a string of Markdown text into HTML.
+ * @param {string} markdown The Markdown text to parse.
+ * @returns {string} The resulting HTML string.
+ */
+function parseMarkdown(markdown) {
+    let html = markdown
+        // General inline replacements
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // Headings
+        .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+        .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        // Horizontal Rules
+        .replace(/^\s*---*\s*$/gm, '<hr>')
+        // Unordered Lists
+        .replace(/^\s*[-*] (.*)/gm, '<li>$1</li>')
+        .replace(/<\/li>\n<li>/g, '</li><li>') // Join consecutive list items
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        // Ordered Lists
+        .replace(/^\s*\d+\. (.*)/gm, '<oli>$1</oli>') // Use a temporary tag
+        .replace(/<\/oli>\n<oli>/g, '</oli><oli>')
+        .replace(/(<oli>.*<\/oli>)/gs, '<ol>$1</ol>')
+        .replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>') // Replace temp tag
+        // Paragraphs (any line that isn't a special tag)
+        .replace(/^(?!<[h1-6r]|<[ou]l>|<li>).+$/gm, (match) => {
+            // Avoid wrapping empty lines or lines that are already part of a list
+            if (match.trim() === '' || match.startsWith('<li>')) {
+                return match;
+            }
+            return `<p>${match}</p>`;
+        })
+        .replace(/<p><\/p>/g, ''); // Clean up empty paragraphs
+    return html;
+}
+
+function setupPwaUpdateFlow() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('Service Worker registered with scope:', reg.scope);
+            reg.addEventListener('updatefound', () => {
+                // A new service worker is installing.
+                newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    // Has the new service worker finished installing?
+                    if (newWorker.state === 'installed') {
+                        // Are there any clients currently controlled by the old service worker?
+                        if (navigator.serviceWorker.controller) {
+                            // Show the "Update Available" button
+                            checkForUpdatesBtn.style.display = 'block';
+                            showToast('A new version is available!', 'info', 0);
+                        }
+                    }
+                });
+            });
+        }).catch(error => {
+            console.error('Service Worker registration failed:', error);
+        });
+
+        let refreshing;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            window.location.reload();
+            refreshing = true;
+        });
+    }
+}
+
 // Wait for the DOM to be fully loaded before running setup code
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
+
+    // Apply saved theme on load
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.body.setAttribute('data-theme', 'dark');
+        darkModeToggle.checked = true;
+    }
+
+    setupSidenav();
+    setupPwaUpdateFlow();
     pdfInput.addEventListener('change', handleFileSelection); // File selection triggers the main logic
     tabNav.addEventListener('dragover', handleDragOver);
-
-    // Register the service worker for PWA functionality
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('Service Worker registered with scope:', registration.scope);
-            }).catch(error => {
-                console.error('Service Worker registration failed:', error);
-            });
-    }
 
     // Announce that the PDF Hub is ready to receive files from a parent window.
     // The '*' targetOrigin is acceptable for local development.

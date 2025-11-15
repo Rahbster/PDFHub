@@ -1,20 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#333333"/>
+    <meta name="theme-color" content="#333333" />
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="PDF Hub">
     <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
     <title>PDF Hub</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
-    <div class="spinner-overlay" id="spinner-overlay"><div class="spinner"></div></div>
+    <div class="spinner-overlay" id="spinner-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <header id="main-header">
+        <button id="hamburger-btn" title="Menu">☰</button>
+        <h1>PDF Hub</h1>
+    </header>
+
+    <div id="sidenav" class="sidenav">
+        <a href="javascript:void(0)" class="closebtn" id="close-sidenav-btn">&times;</a>
+        <a href="#" id="about-btn">About PDF Hub</a>
+        <a href="#" id="check-for-updates-btn" style="display: none;">Update Available</a>
+        <div class="sidenav-item">
+            <label for="dark-mode-toggle">Dark Mode</label>
+            <label class="switch">
+                <input type="checkbox" id="dark-mode-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
 
     <input type="file" id="pdf-input" accept=".pdf" multiple>
 
@@ -29,6 +52,25 @@
 
     <div id="toast-container"></div>
 
+    <div id="about-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>About PDF Hub</h2>
+                <div class="header-controls-group">
+                    <div class="search-input-container">
+                        <input type="search" id="readme-search-input" placeholder="Search...">
+                        <button class="clear-search-btn hidden" data-target="readme-search-input">&times;</button>
+                    </div>
+                    <span id="readme-search-count"></span>
+                </div>
+                <button id="close-about-modal-btn" class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="about-modal-content">
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Load PDF.js library and worker first -->
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;</script>
@@ -37,4 +79,5 @@
     <link rel="manifest" href="manifest.json">
 
 </body>
+
 </html>
