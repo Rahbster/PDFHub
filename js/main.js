@@ -1,8 +1,5 @@
 const { pdfjsLib } = window;
 
-// Set the worker source for pdf.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://mozilla.github.io/pdf.js/build/pdf.worker.mjs`; 
-
 const pdfInput = document.getElementById('pdf-input');
 const resultsContainer = document.getElementById('results-container');
 const tabNav = document.getElementById('tab-nav');
@@ -391,6 +388,25 @@ function createTabPanel(file, tabId, isActive, fileIndex) {
 }
 
 /**
+ * Helper function to read a file as an ArrayBuffer using a Promise.
+ * @param {File} file The file to read.
+ * @returns {Promise<ArrayBuffer>} A promise that resolves with the file's ArrayBuffer content.
+ */
+function readFileAsArrayBuffer(file) {
+    const fileReader = new FileReader();
+    return new Promise((resolve, reject) => {
+        fileReader.onload = (event) => {
+            resolve(event.target.result);
+        };
+        fileReader.onerror = (error) => {
+            reject(error);
+        };
+        fileReader.readAsArrayBuffer(file);
+    });
+}
+
+
+/**
  * Reads a PDF file and extracts all text content from its pages.
  * @param {File} file - The PDF file object.
  * @returns {Promise<string>} A promise that resolves with the extracted text.
@@ -398,52 +414,43 @@ function createTabPanel(file, tabId, isActive, fileIndex) {
 async function extractTextFromPdf(file) {
     const fileReader = new FileReader();
 
-    return new Promise((resolve, reject) => {
-        fileReader.onload = async (event) => {
-            try {
-                const typedarray = new Uint8Array(event.target.result);
-                const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-                let fullText = '';
+    try {
+        const arrayBuffer = await readFileAsArrayBuffer(file);
+        const typedarray = new Uint8Array(arrayBuffer);
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        let fullText = '';
 
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
 
-                    if (textContent.items.length === 0) continue;
+            if (textContent.items.length === 0) continue;
 
-                    // Sort items by their vertical, then horizontal position.
-                    // This is crucial for reconstructing the text flow.
-                    const sortedItems = textContent.items.sort((a, b) => {
-                        const yComparison = b.transform[5] - a.transform[5]; // Compare Y-coordinate (top-to-bottom)
-                        if (Math.abs(yComparison) < 2) { // If on the same line (within a small tolerance)
-                            return a.transform[4] - b.transform[4]; // Compare X-coordinate (left-to-right)
-                        }
-                        return yComparison;
-                    });
-
-                    let lastY = sortedItems[0].transform[5];
-                    let pageText = '';
-                    for (const item of sortedItems) {
-                        // If the Y position of the current item is significantly different from the last,
-                        // it's a new line.
-                        if (Math.abs(item.transform[5] - lastY) > item.height) {
-                            pageText += '\n';
-                        }
-                        pageText += item.str;
-                        lastY = item.transform[5];
-                    }
-                    fullText += pageText;
+            // Sort items by their vertical, then horizontal position.
+            const sortedItems = textContent.items.sort((a, b) => {
+                const yComparison = b.transform[5] - a.transform[5]; // Compare Y-coordinate
+                if (Math.abs(yComparison) < 2) { // If on the same line
+                    return a.transform[4] - b.transform[4]; // Compare X-coordinate
                 }
+                return yComparison;
+            });
 
-                resolve(fullText.trim());
-            } catch (error) {
-                reject(error);
+            let lastY = sortedItems[0].transform[5];
+            let pageText = '';
+            for (const item of sortedItems) {
+                if (Math.abs(item.transform[5] - lastY) > item.height) {
+                    pageText += '\n';
+                }
+                pageText += item.str;
+                lastY = item.transform[5];
             }
-        };
+            fullText += pageText;
+        }
 
-        fileReader.onerror = (error) => reject(error);
-        fileReader.readAsArrayBuffer(file);
-    });
+        return fullText.trim();
+    } catch (error) {
+        throw error; // Re-throw the error to be caught by the caller
+    }
 }
 
 /**
@@ -454,51 +461,39 @@ async function extractTextFromPdf(file) {
 async function extractHtmlFromPdf(file) {
     const fileReader = new FileReader();
 
-    return new Promise((resolve, reject) => {
-        fileReader.onload = async (event) => {
-            try {
-                const typedarray = new Uint8Array(event.target.result);
-                const loadingTask = pdfjsLib.getDocument({
-                    data: typedarray,
-                    cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
-                    cMapPacked: true,
-                });
-                const pdf = await loadingTask.promise;
-                let fullHtml = '';
+    try {
+        const arrayBuffer = await readFileAsArrayBuffer(file);
+        const typedarray = new Uint8Array(arrayBuffer);
+        const loadingTask = pdfjsLib.getDocument({
+            data: typedarray,
+            cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
+            cMapPacked: true,
+        });
+        const pdf = await loadingTask.promise;
+        let fullHtml = '';
 
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 1.0 });
-                    const textContent = await page.getTextContent();
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.0 });
+            const textContent = await page.getTextContent();
 
-                    let pageHtml = `<div style="position: relative; width:${viewport.width}px; height:${viewport.height}px; border: 1px solid #ccc; margin: 1rem auto; background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">`;
+            let pageHtml = `<div style="position: relative; width:${viewport.width}px; height:${viewport.height}px; border: 1px solid #ccc; margin: 1rem auto; background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">`;
 
-                    for (const item of textContent.items) {
-                        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-                        const style = [
-                            `position: absolute`,
-                            `left:${tx[4]}px`,
-                            `top:${tx[5]}px`,
-                            `font-size:${item.height}px`,
-                            `font-family:${item.fontName}`,
-                        ].join('; ');
-
-                        const sanitizedText = item.str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        pageHtml += `<span style="${style}">${sanitizedText}</span>`;
-                    }
-
-                    pageHtml += '</div>';
-                    fullHtml += pageHtml;
-                }
-
-                resolve(fullHtml);
-            } catch (error) {
-                reject(error);
+            for (const item of textContent.items) {
+                const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                const style = `position: absolute; left:${tx[4]}px; top:${tx[5]}px; font-size:${item.height}px; font-family:${item.fontName};`;
+                const sanitizedText = item.str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                pageHtml += `<span style="${style}">${sanitizedText}</span>`;
             }
-        };
-        fileReader.onerror = (error) => reject(error);
-        fileReader.readAsArrayBuffer(file);
-    });
+
+            pageHtml += '</div>';
+            fullHtml += pageHtml;
+        }
+
+        return fullHtml;
+    } catch (error) {
+        throw error; // Re-throw the error to be caught by the caller
+    }
 }
 
 // Wait for the DOM to be fully loaded before running setup code
