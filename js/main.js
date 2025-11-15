@@ -631,7 +631,7 @@ function parseMarkdown(markdown) {
 
 function setupPwaUpdateFlow() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(reg => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
             console.log('Service Worker registered with scope:', reg.scope);
             reg.addEventListener('updatefound', () => {
                 // A new service worker is installing.
