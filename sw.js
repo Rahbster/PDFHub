@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-hub-pwa-cache-v10';
+const CACHE_NAME = 'pdf-hub-pwa-cache-v11';
 const localUrlsToCache = [
     './',
     './index.html',
@@ -6,7 +6,9 @@ const localUrlsToCache = [
     './js/main.js',
     './sw.js',
     './manifest.json',
-    './README.md'
+    './README.md',
+    './icons/icon-192x192.png',
+    './icons/icon-512x512.png'
 ];
 
 const externalUrlsToCache = [
