@@ -582,7 +582,10 @@ async function setupPwaUpdateFlow() {
         return;
     }
 
-    const registration = await navigator.serviceWorker.register('../sw.js');
+    // Construct a portable path to the service worker.
+    // This correctly resolves to '/PDFHub/sw.js' on GitHub pages and '/sw.js' on localhost.
+    const swUrl = new URL('sw.js', window.location.href).href;
+    const registration = await navigator.serviceWorker.register(swUrl);
 
     // Listen for a new service worker being installed.
     registration.addEventListener('updatefound', () => {
