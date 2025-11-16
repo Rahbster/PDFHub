@@ -582,7 +582,7 @@ async function setupPwaUpdateFlow() {
         return;
     }
 
-    const registration = await navigator.serviceWorker.register('../sw.js');
+    const registration = await navigator.serviceWorker.register('./sw.js');
 
     // Listen for a new service worker being installed.
     registration.addEventListener('updatefound', () => {
