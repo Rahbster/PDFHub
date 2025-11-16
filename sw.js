@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-hub-pwa-cache-v11';
+const CACHE_NAME = 'pdf-hub-pwa-cache-v12';
 const localUrlsToCache = [
     './',
     './index.html',

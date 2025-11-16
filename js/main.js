@@ -17,7 +17,6 @@ const aboutBtn = document.getElementById('about-btn');
 const checkForUpdatesBtn = document.getElementById('check-for-updates-btn');
 const aboutModalOverlay = document.getElementById('about-modal-overlay');
 const aboutModalContent = document.getElementById('about-modal-content');
-const darkModeToggle = document.getElementById('dark-mode-toggle');
 const closeAboutModalBtn = document.getElementById('close-about-modal-btn');
 
 // To keep track of created object URLs for cleanup
@@ -490,9 +489,8 @@ async function extractTextFromPdf(file) {
 }
 
 function setupSidenav() {
-    hamburgerBtn.addEventListener('click', (e) => {
+    hamburgerBtn.addEventListener('click', () => {
         sidenav.style.width = '250px';
-        e.stopPropagation(); // Prevent this click from being caught by the window listener
     });
 
     closeSidenavBtn.addEventListener('click', () => {
@@ -509,13 +507,6 @@ function setupSidenav() {
         aboutModalOverlay.style.display = 'none';
     });
 
-    // Add a global click listener to close the sidenav when clicking outside
-    window.addEventListener('click', (e) => {
-        if (sidenav.style.width === '250px' && !sidenav.contains(e.target)) {
-            sidenav.style.width = '0';
-        }
-    });
-
     aboutModalOverlay.addEventListener('click', (e) => {
         if (e.target === aboutModalOverlay) {
             aboutModalOverlay.style.display = 'none';
@@ -525,17 +516,6 @@ function setupSidenav() {
     checkForUpdatesBtn.addEventListener('click', () => {
         if (newWorker) {
             newWorker.postMessage({ action: 'skipWaiting' });
-        }
-    });
-
-    // Theme switching logic
-    darkModeToggle.addEventListener('change', () => {
-        if (darkModeToggle.checked) {
-            document.body.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.body.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'light');
         }
     });
 }
@@ -551,7 +531,14 @@ async function showReadmeModal() {
         if (!response.ok) throw new Error('README.md file not found.');
 
         const markdown = await response.text();
-        originalHTML = parseMarkdown(markdown);
+        originalHTML = markdown
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+            .replace(/\*(.*)\*/gim, '<em>$1</em>')
+            .replace(/`([^`]+)`/gim, '<code>$1</code>')
+            .replace(/\n/g, '<br>');
         contentArea.innerHTML = originalHTML;
 
         const searchInput = document.getElementById('readme-search-input');
@@ -589,89 +576,52 @@ async function showReadmeModal() {
     }
 }
 
-/**
- * Parses a string of Markdown text into HTML.
- * @param {string} markdown The Markdown text to parse.
- * @returns {string} The resulting HTML string.
- */
-function parseMarkdown(markdown) {
-    let html = markdown
-        // General inline replacements
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        // Headings
-        .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
-        .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        // Horizontal Rules
-        .replace(/^\s*---*\s*$/gm, '<hr>')
-        // Unordered Lists
-        .replace(/^\s*[-*] (.*)/gm, '<li>$1</li>')
-        .replace(/<\/li>\n<li>/g, '</li><li>') // Join consecutive list items
-        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-        // Ordered Lists
-        .replace(/^\s*\d+\. (.*)/gm, '<oli>$1</oli>') // Use a temporary tag
-        .replace(/<\/oli>\n<oli>/g, '</oli><oli>')
-        .replace(/(<oli>.*<\/oli>)/gs, '<ol>$1</ol>')
-        .replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>') // Replace temp tag
-        // Paragraphs (any line that isn't a special tag)
-        .replace(/^(?!<[h1-6r]|<[ou]l>|<li>).+$/gm, (match) => {
-            // Avoid wrapping empty lines or lines that are already part of a list
-            if (match.trim() === '' || match.startsWith('<li>')) {
-                return match;
-            }
-            return `<p>${match}</p>`;
-        })
-        .replace(/<p><\/p>/g, ''); // Clean up empty paragraphs
-    return html;
-}
-
-function setupPwaUpdateFlow() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(reg => {
-            console.log('Service Worker registered with scope:', reg.scope);
-            reg.addEventListener('updatefound', () => {
-                // A new service worker is installing.
-                newWorker = reg.installing;
-                newWorker.addEventListener('statechange', () => {
-                    // Has the new service worker finished installing?
-                    if (newWorker.state === 'installed') {
-                        // Are there any clients currently controlled by the old service worker?
-                        if (navigator.serviceWorker.controller) {
-                            // Show the "Update Available" button
-                            checkForUpdatesBtn.style.display = 'block';
-                            showToast('A new version is available!', 'info', 0);
-                        }
-                    }
-                });
-            });
-        }).catch(error => {
-            console.error('Service Worker registration failed:', error);
-        });
-
-        let refreshing;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (refreshing) return;
-            window.location.reload();
-            refreshing = true;
-        });
+async function setupPwaUpdateFlow() {
+    if (!('serviceWorker' in navigator)) {
+        console.log('Service Worker not supported in this browser.');
+        return;
     }
+
+    const registration = await navigator.serviceWorker.register('sw.js');
+
+    // Listen for a new service worker being installed.
+    registration.addEventListener('updatefound', () => {
+        console.log('New service worker found. Installing...');
+        newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+            // If the new service worker has installed and is waiting, show the update prompt.
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('New service worker is installed and waiting.');
+                const toast = showToast('A new version is available! Click to update.', 'info', 0);
+                toast.onclick = () => {
+                    newWorker.postMessage({ action: 'skipWaiting' });
+                };
+            }
+        });
+    });
+
+    // Manually check for updates when the button is clicked.
+    checkForUpdatesBtn.onclick = () => {
+        showToast('Checking for updates...', 'info');
+        registration.update().then(reg => {
+            if (!reg.installing && !reg.waiting) {
+                showToast('App is up to date.', 'info');
+            }
+        }).catch(err => {
+            console.error('Error checking for SW update:', err);
+            showToast('Update check failed.', 'error');
+        });
+    };
+
+    // This listener will trigger the reload once the new worker has taken control.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+    });
 }
 
 // Wait for the DOM to be fully loaded before running setup code
 document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
-
-    // Apply saved theme on load
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    if (savedTheme === 'dark') {
-        document.body.setAttribute('data-theme', 'dark');
-        darkModeToggle.checked = true;
-    }
-
     setupSidenav();
     setupPwaUpdateFlow();
     pdfInput.addEventListener('change', handleFileSelection); // File selection triggers the main logic
