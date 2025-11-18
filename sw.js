@@ -50,13 +50,21 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
                 return cachedResponse;
             }
-            // If it's not in the cache, fetch it from the network.
-            return fetch(event.request).then((networkResponse) => {
-                // And cache the new response for future use.
-                return caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, networkResponse.clone());
+
+            // If not in cache, fetch from the network.
+            const fetchRequest = event.request.clone();
+
+            return fetch(fetchRequest).then((networkResponse) => {
+                // Check if we received a valid response
+                if (!networkResponse || networkResponse.status !== 200 && networkResponse.type !== 'opaque') {
                     return networkResponse;
+                }
+
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
                 });
+                return networkResponse;
             });
         })
     );
