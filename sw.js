@@ -43,28 +43,22 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // "Cache then Network" strategy for GET requests.
+    // "Cache First" (Cache, falling back to Network) strategy.
     event.respondWith(
-        (async () => { // IIFE (Immediately Invoked Function Expression)
-            const cache = await caches.open(CACHE_NAME);
-            const cachedResponse = await cache.match(event.request);
-
-            try {
-                // Network First: Try to fetch a fresh version from the network.
-                const networkResponse = await fetch(event.request);
-
-                // If the fetch is successful, cache the new response and return it.
-                // We only cache valid responses (status 200-299) to avoid caching errors.
-                if (networkResponse.ok) {
-                    cache.put(event.request, networkResponse.clone());
-                }
-                
-                return networkResponse;
-            } catch (error) {
-                // Network failed, so fall back to the cached version if it exists.
+        caches.match(event.request).then((cachedResponse) => {
+            // If the response is in the cache, return it.
+            if (cachedResponse) {
                 return cachedResponse;
             }
-        })()
+            // If it's not in the cache, fetch it from the network.
+            return fetch(event.request).then((networkResponse) => {
+                // And cache the new response for future use.
+                return caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, networkResponse.clone());
+                    return networkResponse;
+                });
+            });
+        })
     );
 });
 
